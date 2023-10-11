@@ -4,7 +4,10 @@ use async_std::prelude::*;
 
 #[async_std::main]
 async fn main() -> io::Result<()> {
+    // Setting up TCP connection
     let mut stream: TcpStream = TcpStream::connect("localhost:6379").await?;
+
+    // Setting up PING command
     let command: &[u8; 14] = b"*1\r\n$4\r\nPING\r\n";
     let mut buffer: Vec<u8> = vec![0; 1024];
 
