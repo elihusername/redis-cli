@@ -41,3 +41,20 @@ enum RespValues {
     BulkString(Vec<u8>),
     Array(Vec<RespValues>),
 }
+
+impl RespValues {
+    fn serialize(&self) -> Vec<u8> {
+        let mut buff: Vec<u8> = vec![];
+        match self {
+            RespValues::Array(values) => {
+                buff.push(b'*');
+                buff.append(&mut format!("{}", values.len()).into_bytes())
+                buff.push(b'\n');
+                buff.push(b'\r');
+            }
+            _ => unimplemented!(),
+        }
+
+        buff
+    }
+}
