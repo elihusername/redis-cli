@@ -15,7 +15,7 @@ async fn main() -> io::Result<()> {
     let bytes_read: usize = stream.read(&mut buffer).await?;
 
     // println!("{:?}", std::str::from_utf8(&buffer[..bytes_read]));
-    parse_response(&buffer[0..bytes_read]);
+    println!("{:?}", parse_response(&buffer[0..bytes_read]));
     Ok(())
 }
 
@@ -32,4 +32,12 @@ fn parse_response(buffer: &[u8]) -> Result<&str, String> {
     }
 
     Ok(std::str::from_utf8(&buffer[1..buffer.len() - 2]).unwrap())
+}
+
+enum RespValues {
+    SimpleString(String),
+    Error(Vec<u8>),
+    Integer(i64),
+    BulkString(Vec<u8>),
+    Array(Vec<RespValues>),
 }
