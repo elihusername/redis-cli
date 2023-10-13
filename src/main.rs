@@ -43,12 +43,23 @@ enum RespValues {
 }
 
 impl RespValues {
-    fn serialize(&self) -> Vec<u8> {
-        let mut buff: Vec<u8> = vec![];
+    fn serialize(self, buff: &mut Vec<u8>) -> Vec<u8> {
         match self {
             RespValues::Array(values) => {
                 buff.push(b'*');
-                buff.append(&mut format!("{}", values.len()).into_bytes())
+                buff.append(&mut format!("{}", values.len()).into_bytes());
+                buff.push(b'\n');
+                buff.push(b'\r');
+                for value in values {
+                    value.serialize(buff);
+                }
+            }
+            RespValues::BulkString(mut data) => {
+                buff.push(b'$');
+                buff.append(&mut format!("{}", data.len()).into_bytes());
+                buff.push(b'\n');
+                buff.push(b'\r');
+                buff.append(&mut data);
                 buff.push(b'\n');
                 buff.push(b'\r');
             }
