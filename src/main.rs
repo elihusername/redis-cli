@@ -8,10 +8,15 @@ async fn main() -> io::Result<()> {
     let mut stream: TcpStream = TcpStream::connect("localhost:6379").await?;
 
     // Setting up PING command
-    let command: &[u8; 14] = b"*1\r\n$4\r\nPING\r\n"; // [42, 49, 13, 10, 36, 52, 13, 10, 80, 73, 78, 71, 13, 10]
-    let mut buffer: Vec<u8> = vec![0; 1024];
+    let mut buffer = vec![];
+    let command: RespValues = RespValues::Array(vec![RespValues::BulkString(b"PING".to_vec())]);
 
-    stream.write_all(command).await?;
+    command.serialize(&mut buffer);
+
+    println!("{:?}", buffer);
+
+    stream.write_all(&buffer).await?;
+
     let bytes_read: usize = stream.read(&mut buffer).await?;
 
     // println!("{:?}", std::str::from_utf8(&buffer[..bytes_read]));
@@ -27,7 +32,7 @@ fn parse_response(buffer: &[u8]) -> Result<&str, String> {
     if buffer[0] == b'-' {
         return Err(format!(
             "Error Response: {:?}",
-            &buffer[1..buffer.len() - 2]
+            std::str::from_utf8(&buffer[1..buffer.len() - 2])
         ));
     }
 
@@ -43,13 +48,13 @@ enum RespValues {
 }
 
 impl RespValues {
-    fn serialize(self, buff: &mut Vec<u8>) -> Vec<u8> {
+    fn serialize(self, buff: &mut Vec<u8>) -> &mut Vec<u8> {
         match self {
             RespValues::Array(values) => {
                 buff.push(b'*');
                 buff.append(&mut format!("{}", values.len()).into_bytes());
-                buff.push(b'\n');
                 buff.push(b'\r');
+                buff.push(b'\n');
                 for value in values {
                     value.serialize(buff);
                 }
@@ -57,11 +62,11 @@ impl RespValues {
             RespValues::BulkString(mut data) => {
                 buff.push(b'$');
                 buff.append(&mut format!("{}", data.len()).into_bytes());
-                buff.push(b'\n');
                 buff.push(b'\r');
+                buff.push(b'\n');
                 buff.append(&mut data);
-                buff.push(b'\n');
                 buff.push(b'\r');
+                buff.push(b'\n');
             }
             _ => unimplemented!(),
         }
