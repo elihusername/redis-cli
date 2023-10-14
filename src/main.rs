@@ -4,22 +4,22 @@ use async_std::prelude::*;
 
 #[async_std::main]
 async fn main() -> io::Result<()> {
-    let bytes_read: usize = stream.read(&mut buffer).await?;
-
-    println!("{:?}", parse_response(&buffer[0..bytes_read]));
+    let mut tcp_client = Client::new("localhost:6379").await?;
+    tcp_client
+        .set("Elihu".into(), "Miami".into())
+        .await
+        .unwrap();
+    println!("{}", tcp_client.get("Elihu".into()).await.unwrap());
     Ok(())
 }
 
-fn parse_response(buffer: &[u8]) -> Result<&str, String> {
+fn parse_response(buffer: &[u8]) -> Result<&str, Error> {
     if buffer.is_empty() {
-        return Err("Empty Buffer".into());
+        return Err(Error {});
     }
 
     if buffer[0] == b'-' {
-        return Err(format!(
-            "Error Response: {:?}",
-            std::str::from_utf8(&buffer[1..buffer.len() - 2])
-        ));
+        return Err(Error {});
     }
 
     Ok(std::str::from_utf8(&buffer[1..buffer.len() - 2]).unwrap())
@@ -37,25 +37,44 @@ impl Client {
 }
 
 impl Client {
-    async fn set(&mut self, key: String, value: String) -> Result<(), Error> {
+    async fn get(&mut self, key: String) -> Result<String, Error> {
         let mut buffer: Vec<u8> = vec![];
         let command: RespValues = RespValues::Array(vec![
-            RespValues::BulkString(b"SET".to_vec()),
-            RespValues::BulkString(b"elihu".to_vec()),
-            RespValues::BulkString(b"Miami".to_vec()),
+            RespValues::BulkString(b"GET".to_vec()),
+            RespValues::BulkString(key.into_bytes()),
         ]);
 
         command.serialize(&mut buffer);
         self.stream.write_all(&buffer).await?;
 
+        let bytes_read = self.stream.read(&mut buffer).await?;
+        let resp: &str = parse_response(&buffer[..bytes_read])?;
+
+        Ok(resp.to_owned())
+    }
+
+    async fn set(&mut self, key: String, value: String) -> Result<(), Error> {
+        let mut buffer: Vec<u8> = vec![];
+        let command: RespValues = RespValues::Array(vec![
+            RespValues::BulkString(b"SET".to_vec()),
+            RespValues::BulkString(key.into_bytes()),
+            RespValues::BulkString(value.into_bytes()),
+        ]);
+
+        command.serialize(&mut buffer);
+        self.stream.write_all(&buffer).await?;
+
+        let bytes_read = self.stream.read(&mut buffer).await?;
+        parse_response(&buffer[..bytes_read])?;
+
         Ok(())
     }
 }
-
+#[derive(Debug)]
 struct Error {}
 
 impl std::convert::From<io::Error> for Error {
-    fn from(value: io::Error) -> Self {
+    fn from(_: io::Error) -> Self {
         Error {}
     }
 }
