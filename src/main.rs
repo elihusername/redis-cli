@@ -31,7 +31,8 @@ struct Client {
 
 impl Client {
     async fn new<A: ToSocketAddrs>(addr: A) -> Result<Client, io::Error> {
-        TcpStream::connect("localhost:6379").await?
+        let stream: TcpStream = TcpStream::connect(addr).await?;
+        Ok(Client { stream })
     }
 }
 
