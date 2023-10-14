@@ -1,12 +1,9 @@
 use async_std::io;
-use async_std::net::TcpStream;
+use async_std::net::{TcpStream, ToSocketAddrs};
 use async_std::prelude::*;
 
 #[async_std::main]
 async fn main() -> io::Result<()> {
-    // Setting up TCP connection
-    let mut stream: TcpStream = TcpStream::connect("localhost:6379").await?;
-
     let bytes_read: usize = stream.read(&mut buffer).await?;
 
     println!("{:?}", parse_response(&buffer[0..bytes_read]));
@@ -30,6 +27,12 @@ fn parse_response(buffer: &[u8]) -> Result<&str, String> {
 
 struct Client {
     stream: TcpStream,
+}
+
+impl Client {
+    async fn new<A: ToSocketAddrs>(addr: A) -> Result<Client, io::Error> {
+        TcpStream::connect("localhost:6379").await?
+    }
 }
 
 impl Client {
