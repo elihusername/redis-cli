@@ -8,18 +8,19 @@ async fn main() -> io::Result<()> {
     let mut stream: TcpStream = TcpStream::connect("localhost:6379").await?;
 
     // Setting up PING command
-    let mut buffer = vec![];
-    let command: RespValues = RespValues::Array(vec![RespValues::BulkString(b"PING".to_vec())]);
+    let mut buffer: Vec<u8> = vec![];
+    let command: RespValues = RespValues::Array(vec![
+        RespValues::BulkString(b"SET".to_vec()),
+        RespValues::BulkString(b"elihu".to_vec()),
+        RespValues::BulkString(b"Miami".to_vec()),
+    ]);
 
     command.serialize(&mut buffer);
-
-    println!("{:?}", buffer);
 
     stream.write_all(&buffer).await?;
 
     let bytes_read: usize = stream.read(&mut buffer).await?;
 
-    // println!("{:?}", std::str::from_utf8(&buffer[..bytes_read]));
     println!("{:?}", parse_response(&buffer[0..bytes_read]));
     Ok(())
 }
