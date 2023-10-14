@@ -7,18 +7,6 @@ async fn main() -> io::Result<()> {
     // Setting up TCP connection
     let mut stream: TcpStream = TcpStream::connect("localhost:6379").await?;
 
-    // Setting up PING command
-    let mut buffer: Vec<u8> = vec![];
-    let command: RespValues = RespValues::Array(vec![
-        RespValues::BulkString(b"SET".to_vec()),
-        RespValues::BulkString(b"elihu".to_vec()),
-        RespValues::BulkString(b"Miami".to_vec()),
-    ]);
-
-    command.serialize(&mut buffer);
-
-    stream.write_all(&buffer).await?;
-
     let bytes_read: usize = stream.read(&mut buffer).await?;
 
     println!("{:?}", parse_response(&buffer[0..bytes_read]));
@@ -38,6 +26,34 @@ fn parse_response(buffer: &[u8]) -> Result<&str, String> {
     }
 
     Ok(std::str::from_utf8(&buffer[1..buffer.len() - 2]).unwrap())
+}
+
+struct Client {
+    stream: TcpStream,
+}
+
+impl Client {
+    async fn set(&mut self, key: String, value: String) -> Result<(), Error> {
+        let mut buffer: Vec<u8> = vec![];
+        let command: RespValues = RespValues::Array(vec![
+            RespValues::BulkString(b"SET".to_vec()),
+            RespValues::BulkString(b"elihu".to_vec()),
+            RespValues::BulkString(b"Miami".to_vec()),
+        ]);
+
+        command.serialize(&mut buffer);
+        self.stream.write_all(&buffer).await?;
+
+        Ok(())
+    }
+}
+
+struct Error {}
+
+impl std::convert::From<io::Error> for Error {
+    fn from(value: io::Error) -> Self {
+        Error {}
+    }
 }
 
 enum RespValues {
