@@ -16,7 +16,11 @@ fn parse_response(buffer: &[u8]) -> Result<&str, RedisError> {
     }
 
     if buffer[0] == b'-' {
-        return Err(RedisError::ResponseError);
+        let utf8_err_result: Result<&str, std::str::Utf8Error> =
+            std::str::from_utf8(&buffer[1..buffer.len() - 2]);
+        let valid_err_utf8 = utf8_err_result.map_err(|_| RedisError::Utf8DecodingError)?;
+
+        return Err(RedisError::ResponseError(valid_err_utf8.into()));
     }
 
     let utf8_result: Result<&str, std::str::Utf8Error> =
@@ -75,8 +79,8 @@ impl Client {
 #[derive(Debug)]
 enum RedisError {
     ConnectionError(io::Error),
+    ResponseError(String),
     Utf8DecodingError,
-    ResponseError,
     EmptyBuffer,
 }
 
@@ -88,8 +92,10 @@ impl std::fmt::Display for RedisError {
             RedisError::ConnectionError(io_err) => {
                 write!(f, "Connection error: {}", io_err)
             }
+            RedisError::ResponseError(response_err) => {
+                write!(f, "Response error: {}", response_err)
+            }
             RedisError::Utf8DecodingError => write!(f, "UTF8 Decoding error"),
-            RedisError::ResponseError => write!(f, "Response error"),
             RedisError::EmptyBuffer => write!(f, "Buffer is empty"),
         }
     }
@@ -102,9 +108,6 @@ impl From<io::Error> for RedisError {
 }
 
 enum RespValues {
-    SimpleString(String),
-    Error(Vec<u8>),
-    Integer(i64),
     BulkString(Vec<u8>),
     Array(Vec<RespValues>),
 }
