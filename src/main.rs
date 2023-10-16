@@ -18,11 +18,12 @@ fn parse_response(buffer: &[u8]) -> Result<&str, RedisError> {
     if buffer[0] == b'-' {
         return Err(RedisError::ResponseError);
     }
-    // TODO: remove utf8 error unwrap
-    // let utf8_result = std::str::from_utf8(&buffer[1..buffer.len() - 2]);
-    // let valid_utf8 = utf8_result.map_err(|_| RedisError::Utf8DecodingError)?;
 
-    Ok(std::str::from_utf8(&buffer[1..buffer.len() - 2]).unwrap())
+    let utf8_result: Result<&str, std::str::Utf8Error> =
+        std::str::from_utf8(&buffer[1..buffer.len() - 2]);
+    let valid_utf8 = utf8_result.map_err(|_| RedisError::Utf8DecodingError)?;
+
+    Ok(valid_utf8)
 }
 
 struct Client {
@@ -74,6 +75,7 @@ impl Client {
 #[derive(Debug)]
 enum RedisError {
     ConnectionError(io::Error),
+    Utf8DecodingError,
     ResponseError,
     EmptyBuffer,
 }
@@ -86,6 +88,7 @@ impl std::fmt::Display for RedisError {
             RedisError::ConnectionError(io_err) => {
                 write!(f, "Connection error: {}", io_err)
             }
+            RedisError::Utf8DecodingError => write!(f, "UTF8 Decoding error"),
             RedisError::ResponseError => write!(f, "Response error"),
             RedisError::EmptyBuffer => write!(f, "Buffer is empty"),
         }
