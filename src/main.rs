@@ -4,7 +4,6 @@ use async_std::prelude::*;
 
 // TODO:
 // Be able to type out commands
-// Fix Bulk String bug
 
 #[async_std::main]
 async fn main() -> Result<(), RedisError> {
@@ -19,15 +18,28 @@ fn parse_response(buffer: &[u8]) -> Result<&str, RedisError> {
         return Err(RedisError::EmptyBuffer);
     }
 
-    let utf8_result: Result<&str, std::str::Utf8Error> =
-        std::str::from_utf8(&buffer[1..buffer.len() - 2]);
-    let valid_utf8: &str = utf8_result.map_err(|_| RedisError::Utf8DecodingError)?;
+    match buffer.first() {
+        Some(&b'-') => {
+            let utf8_result: Result<&str, std::str::Utf8Error> =
+                std::str::from_utf8(&buffer[1..buffer.len() - 2]);
+            let valid_utf8: &str = utf8_result.map_err(|_| RedisError::Utf8DecodingError)?;
+            Err(RedisError::ResponseError(valid_utf8.into()))
+        }
+        Some(&b'$') => {
+            let newline: usize = buffer.iter().position(|&x| x == 10).unwrap_or(buffer.len());
 
-    if buffer[0] == b'-' {
-        return Err(RedisError::ResponseError(valid_utf8.into()));
+            let utf8_result: Result<&str, std::str::Utf8Error> =
+                std::str::from_utf8(&buffer[newline + 1..buffer.len() - 2]);
+            let valid_utf8: &str = utf8_result.map_err(|_| RedisError::Utf8DecodingError)?;
+            Ok(valid_utf8)
+        }
+        _ => {
+            let utf8_result: Result<&str, std::str::Utf8Error> =
+                std::str::from_utf8(&buffer[1..buffer.len() - 2]);
+            let valid_utf8: &str = utf8_result.map_err(|_| RedisError::Utf8DecodingError)?;
+            Ok(valid_utf8)
+        }
     }
-
-    Ok(valid_utf8)
 }
 
 struct Client {
