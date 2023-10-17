@@ -2,6 +2,10 @@ use async_std::io;
 use async_std::net::{TcpStream, ToSocketAddrs};
 use async_std::prelude::*;
 
+// TODO:
+// Be able to type out commands
+// Fix Bulk String bug
+
 #[async_std::main]
 async fn main() -> Result<(), RedisError> {
     let mut tcp_client = Client::new("localhost:6379").await?;
@@ -15,17 +19,13 @@ fn parse_response(buffer: &[u8]) -> Result<&str, RedisError> {
         return Err(RedisError::EmptyBuffer);
     }
 
-    if buffer[0] == b'-' {
-        let utf8_err_result: Result<&str, std::str::Utf8Error> =
-            std::str::from_utf8(&buffer[1..buffer.len() - 2]);
-        let valid_err_utf8 = utf8_err_result.map_err(|_| RedisError::Utf8DecodingError)?;
-
-        return Err(RedisError::ResponseError(valid_err_utf8.into()));
-    }
-
     let utf8_result: Result<&str, std::str::Utf8Error> =
         std::str::from_utf8(&buffer[1..buffer.len() - 2]);
-    let valid_utf8 = utf8_result.map_err(|_| RedisError::Utf8DecodingError)?;
+    let valid_utf8: &str = utf8_result.map_err(|_| RedisError::Utf8DecodingError)?;
+
+    if buffer[0] == b'-' {
+        return Err(RedisError::ResponseError(valid_utf8.into()));
+    }
 
     Ok(valid_utf8)
 }
