@@ -3,13 +3,44 @@ use async_std::net::{TcpStream, ToSocketAddrs};
 use async_std::prelude::*;
 
 // TODO:
-// Be able to type out commands
+// Look into division of components
 
 #[async_std::main]
 async fn main() -> Result<(), RedisError> {
-    let mut tcp_client = Client::new("localhost:6379").await?;
-    tcp_client.set("Elihu".into(), "Miami".into()).await?;
-    println!("{}", tcp_client.get("Elihu".into()).await?);
+    let mut tcp_client: Client = Client::new("localhost:6379").await?;
+
+    loop {
+        print!("Enter Redis command (e.g., SET key value or GET key): ");
+        io::stdout().flush().await?; // Flush to ensure the prompt is displayed.
+
+        let mut input: String = String::new();
+        io::stdin().read_line(&mut input).await?;
+
+        let parts: Vec<&str> = input.split_whitespace().collect();
+
+        if parts.is_empty() {
+            continue; // Ignore empty input.
+        }
+
+        match parts[0] {
+            "SET" if parts.len() == 3 => {
+                let key = parts[1];
+                let value = parts[2];
+                tcp_client.set(key.into(), value.into()).await?;
+            }
+            "GET" if parts.len() == 2 => {
+                let key = parts[1];
+                println!("{}", tcp_client.get(key.into()).await?);
+            }
+            "QUIT" => {
+                break; // Exit the loop and quit the program.
+            }
+            _ => {
+                println!("Invalid command");
+            }
+        }
+    }
+
     Ok(())
 }
 
